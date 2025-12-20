@@ -1,0 +1,917 @@
+{
+  "info": {
+    "name": "Conference CRM API Collection",
+    "description": "Complete API collection for Conference CRM system with authentication, clients, emails, and more",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "emailId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - CEO",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "    console.log('Token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@crm.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "    console.log('Token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@crm.com\",\n  \"password\": \"manager123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Agent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "    console.log('Token saved:', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"agent@crm.com\",\n  \"password\": \"agent123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Dashboard & Analytics",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard?timeRange=7d&conferenceId=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard"],
+              "query": [
+                {
+                  "key": "timeRange",
+                  "value": "7d"
+                },
+                {
+                  "key": "conferenceId",
+                  "value": "all"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Client Management",
+      "item": [
+        {
+          "name": "Get All Clients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients?page=1&limit=50&search=&status=all&conferenceId=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": "all"
+                },
+                {
+                  "key": "conferenceId",
+                  "value": "all"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create New Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('clientId', response.id);",
+                  "    console.log('Client ID saved:', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\",\n  \"company\": \"Example Corp\",\n  \"position\": \"Manager\",\n  \"country\": \"USA\",\n  \"conferenceId\": null,\n  \"notes\": \"Potential client for conference\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Client by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Client",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John Updated\",\n  \"lastName\": \"Doe Updated\",\n  \"email\": \"john.doe.updated@example.com\",\n  \"phone\": \"+1234567890\",\n  \"company\": \"Updated Corp\",\n  \"position\": \"Senior Manager\",\n  \"country\": \"USA\",\n  \"status\": \"active\",\n  \"notes\": \"Updated client information\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Abstract (Move to Stage 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}/submit-abstract",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}", "submit-abstract"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Client (Complete Registration)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Client",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Email Management",
+      "item": [
+        {
+          "name": "Get All Emails",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/emails?folder=inbox&search=&filter=all&sortBy=date&sortOrder=desc&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emails"],
+              "query": [
+                {
+                  "key": "folder",
+                  "value": "inbox"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "filter",
+                  "value": "all"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "date"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('emailId', response.email.id);",
+                  "    console.log('Email ID saved:', response.email.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"test@example.com\",\n  \"cc\": \"\",\n  \"bcc\": \"\",\n  \"subject\": \"Test Email from CRM\",\n  \"body\": \"This is a test email sent from the Conference CRM system.\",\n  \"templateId\": null,\n  \"attachments\": [],\n  \"clientId\": \"{{clientId}}\",\n  \"isDraft\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/emails/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emails", "send"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Email by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/emails/{{emailId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emails", "{{emailId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Email as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isRead\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/emails/{{emailId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emails", "{{emailId}}", "read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Email Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/email-logs?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "email-logs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Email Templates",
+      "item": [
+        {
+          "name": "Get All Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "templates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Email Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Welcome Email Template\",\n  \"subject\": \"Welcome to {{ConferenceName}}!\",\n  \"body\": \"Dear {{Name}},\\n\\nWelcome to {{ConferenceName}}! We're excited to have you join us.\\n\\nBest regards,\\nThe Conference Team\",\n  \"type\": \"welcome\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "templates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Email Template",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Welcome Email Template\",\n  \"subject\": \"Welcome to {{ConferenceName}} - Updated!\",\n  \"body\": \"Dear {{Name}},\\n\\nWelcome to {{ConferenceName}}! We're excited to have you join us.\\n\\nThis is an updated template.\\n\\nBest regards,\\nThe Conference Team\",\n  \"type\": \"welcome\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/templates/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "templates", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Email Accounts (SMTP/IMAP)",
+      "item": [
+        {
+          "name": "Get All Email Accounts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/email-accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "email-accounts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create SMTP Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gmail SMTP\",\n  \"fromEmail\": \"your-email@gmail.com\",\n  \"type\": \"both\",\n  \"host\": \"smtp.gmail.com\",\n  \"port\": 587,\n  \"username\": \"your-email@gmail.com\",\n  \"password\": \"your-app-password\",\n  \"security\": \"tls\",\n  \"imapHost\": \"imap.gmail.com\",\n  \"imapPort\": 993,\n  \"imapUsername\": \"your-email@gmail.com\",\n  \"imapPassword\": \"your-app-password\",\n  \"imapSecurity\": \"ssl\",\n  \"isSystem\": true,\n  \"allowUsers\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/email-accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "email-accounts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test SMTP Connection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/email-accounts/1/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "email-accounts", "1", "test"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page=1&limit=50&role=all&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "role",
+                  "value": "all"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create New User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"Member\",\n  \"phone\": \"+1234567890\",\n  \"department\": \"Sales\",\n  \"position\": \"Sales Representative\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Conference Management",
+      "item": [
+        {
+          "name": "Get All Conferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/conferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "conferences"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Conference",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tech Conference 2024\",\n  \"description\": \"Annual technology conference\",\n  \"startDate\": \"2024-06-01\",\n  \"endDate\": \"2024-06-03\",\n  \"location\": \"San Francisco, CA\",\n  \"maxAttendees\": 500,\n  \"registrationDeadline\": \"2024-05-15\",\n  \"abstractDeadline\": \"2024-04-30\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/conferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "conferences"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Follow-up Management",
+      "item": [
+        {
+          "name": "Get Follow-up Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/followups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "followups"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pause Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/followups/1/pause",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "followups", "1", "pause"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resume Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/followups/1/resume",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "followups", "1", "resume"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stop Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/followups/1/stop",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "followups", "1", "stop"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Utility Endpoints",
+      "item": [
+        {
+          "name": "Favicon (Prevent 500 Error)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/favicon.ico",
+              "host": ["{{baseUrl}}"],
+              "path": ["favicon.ico"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

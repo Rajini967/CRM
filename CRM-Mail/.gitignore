@@ -1,0 +1,157 @@
+# ===========================================
+# Node.js Dependencies
+# ===========================================
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# ===========================================
+# Environment Variables
+# ===========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.test
+
+# ===========================================
+# Logs
+# ===========================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# ===========================================
+# Runtime & Process Files
+# ===========================================
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ===========================================
+# Test Coverage
+# ===========================================
+coverage/
+*.lcov
+.nyc_output
+
+# ===========================================
+# Dependency Directories
+# ===========================================
+jspm_packages/
+.pnp
+.pnp.js
+
+# ===========================================
+# Cache Directories
+# ===========================================
+.npm
+.eslintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.cache
+.parcel-cache
+
+# ===========================================
+# REPL History
+# ===========================================
+.node_repl_history
+
+# ===========================================
+# Package Files
+# ===========================================
+*.tgz
+.yarn-integrity
+
+# ===========================================
+# Build Outputs (keep source, ignore builds)
+# ===========================================
+build/
+dist/
+.next
+.nuxt
+.out
+.storybook-out
+
+# ===========================================
+# Framework-Specific
+# ===========================================
+# Gatsby
+public/.cache/
+
+# ===========================================
+# Temporary Folders
+# ===========================================
+tmp/
+temp/
+.tmp/
+
+# ===========================================
+# Editor Directories
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ===========================================
+# OS Generated Files
+# ===========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# Database Files
+# ===========================================
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# ===========================================
+# macOS System Files
+# ===========================================
+__MACOSX/
+.AppleDouble
+.LSOverride
+
+# ===========================================
+# Replit & Cloud Hosting
+# ===========================================
+.local/
+.replit
+
+# ===========================================
+# Attachments & Uploads (if not needed in repo)
+# ===========================================
+# attached_assets/
+
+# ===========================================
+# IMPORTANT: DO NOT IGNORE
+# ===========================================
+# package.json files are KEPT
+# package-lock.json files are KEPT
+# All source code in src/ is KEPT
+# All server code is KEPT
+# All config files are KEPT
+# All scripts are KEPT
+# All migrations are KEPT
+# Docker files are KEPT
