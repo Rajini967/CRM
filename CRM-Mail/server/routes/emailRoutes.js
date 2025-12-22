@@ -1213,20 +1213,53 @@ router.post('/send', upload.any(), async (req, res) => {
       // Send email
       const info = await transporter.sendMail(mailOptions);
       
+      // Check if email was actually accepted or rejected
+      const wasAccepted = info.accepted && info.accepted.length > 0;
+      const wasRejected = info.rejected && info.rejected.length > 0;
+      
+      if (wasRejected) {
+        // Email was rejected by SMTP server
+        console.error('❌ Email rejected by SMTP server:');
+        console.error('   Rejected recipients:', info.rejected);
+        console.error('   Response:', info.response);
+        
+        await email.update({
+          isSent: false,
+          status: 'failed',
+          errorMessage: `Rejected recipients: ${info.rejected.join(', ')}`
+        });
+        
+        return res.status(400).json({
+          error: 'Email delivery failed',
+          details: `The following recipients were rejected: ${info.rejected.join(', ')}`,
+          rejected: info.rejected,
+          accepted: info.accepted || []
+        });
+      }
+      
+      // Email was accepted by SMTP server
+      console.log('✅ Email accepted by SMTP server:');
+      console.log('   Message ID:', info.messageId);
+      console.log('   Accepted recipients:', info.accepted);
+      console.log('   Response:', info.response);
+      
       // Update email record with success
       await email.update({
         isSent: true,
         status: 'sent',
-        messageId: info.messageId
+        messageId: info.messageId,
+        deliveredAt: new Date()
       });
 
-      console.log('📧 Email sent successfully:', info.messageId);
+      console.log('📧 Email marked as sent in database');
       
       res.status(201).json({
         ...email.toJSON(),
         isSent: true,
         status: 'sent',
-        messageId: info.messageId
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected || []
       });
       
     } catch (sendError) {

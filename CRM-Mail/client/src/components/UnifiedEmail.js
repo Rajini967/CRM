@@ -1469,15 +1469,13 @@ const UnifiedEmail = () => {
             const currentLineElement = currentLine.domNode || currentLine;
             const currentStyle = currentLineElement.getAttribute('style') || '';
             
-            // Extract margin-bottom and line-height from inline styles
-            let paragraphSpacing = '1em';
+            // Get current block format once for efficiency
+            const currentBlockFormat = quill.getFormat(currentLine);
+            
+            // Extract line-height from inline styles (preserve for consistent line spacing)
             let lineHeight = '1.15';
             
             if (currentStyle) {
-              const marginMatch = currentStyle.match(/margin-bottom:\s*([^;]+)/i);
-              if (marginMatch) {
-                paragraphSpacing = marginMatch[1].trim();
-              }
               const lineHeightMatch = currentStyle.match(/line-height:\s*([^;]+)/i);
               if (lineHeightMatch) {
                 lineHeight = lineHeightMatch[1].trim();
@@ -1485,52 +1483,101 @@ const UnifiedEmail = () => {
             }
             
             // Also try to get from Quill format as fallback
-            if (!paragraphSpacing || paragraphSpacing === '') {
-              const currentBlockFormat = quill.getFormat(currentLine);
-              paragraphSpacing = currentBlockFormat['margin-bottom'] || '1em';
-            }
             if (!lineHeight || lineHeight === '') {
-              const currentBlockFormat = quill.getFormat(currentLine);
               lineHeight = currentBlockFormat['line-height'] || '1.15';
             }
             
+            // CRITICAL FIX: Only preserve paragraph spacing if it was explicitly set by user
+            // Default to '0' for new paragraphs to prevent spacing accumulation
+            // This ensures consistent line spacing unless user explicitly wants paragraph spacing
+            let paragraphSpacing = '0'; // Default: no paragraph spacing for consistent line spacing
+            const currentMargin = currentBlockFormat['margin-bottom'];
+            
+            // Only preserve paragraph spacing if it was explicitly set (not default/empty)
+            // This prevents copying accumulated spacing to new lines
+            if (currentMargin && currentMargin !== '0' && currentMargin !== '') {
+              // User has explicitly set paragraph spacing, preserve it
+              paragraphSpacing = currentMargin;
+            } else {
+              // Check inline styles as fallback
+              if (currentStyle) {
+                const marginMatch = currentStyle.match(/margin-bottom:\s*([^;]+)/i);
+                if (marginMatch) {
+                  const marginValue = marginMatch[1].trim();
+                  // Only use if it's not zero/empty (user explicitly set it)
+                  if (marginValue && marginValue !== '0' && marginValue !== '0px') {
+                    paragraphSpacing = marginValue;
+                  }
+                }
+              }
+            }
+            
             // Let Quill handle the default Enter behavior (creates new paragraph)
-            // Use a more reliable approach with multiple event listeners
+            // We'll apply formatting after the new paragraph is created, preserving cursor position
             let applied = false;
+            
             const applyFormatting = () => {
               if (applied) return;
-              const newRange = quill.getSelection(true);
-              if (newRange) {
-                const [newLine] = quill.getLine(newRange.index);
-                if (newLine) {
-                  const lineIndex = quill.getIndex(newLine);
-                  // Apply both line-height and margin-bottom to new paragraph
-                  // Use setTimeout to ensure it happens after Quill's internal processing
-                  setTimeout(() => {
-                    quill.formatLine(lineIndex, 'line-height', lineHeight, 'user');
-                    quill.formatLine(lineIndex, 'margin-bottom', paragraphSpacing, 'user');
-                  }, 0);
-                  applied = true;
-                  quill.off('text-change', applyFormatting);
-                  quill.off('selection-change', applyFormatting);
+              
+              // Get the current selection - this should be at the new paragraph after Enter
+              const currentSelection = quill.getSelection(true);
+              if (!currentSelection) {
+                return;
+              }
+              
+              // CRITICAL: Save the cursor position before any formatting operations
+              const savedCursorIndex = currentSelection.index;
+              const savedCursorLength = currentSelection.length;
+              
+              // Find the new line that was just created
+              const [newLine] = quill.getLine(savedCursorIndex);
+              if (newLine) {
+                const lineIndex = quill.getIndex(newLine);
+                
+                // Apply line-height for consistent line spacing within paragraphs
+                quill.formatLine(lineIndex, 'line-height', lineHeight, 'api');
+                
+                // Apply paragraph spacing: use '0' by default for consistent spacing
+                // Only apply non-zero spacing if user explicitly set it
+                if (paragraphSpacing && paragraphSpacing !== '0' && paragraphSpacing !== '0px') {
+                  quill.formatLine(lineIndex, 'margin-bottom', paragraphSpacing, 'api');
+                } else {
+                  // Explicitly set to '0' to ensure no paragraph spacing (consistent line spacing)
+                  quill.formatLine(lineIndex, 'margin-bottom', '0', 'api');
                 }
+                
+                // CRITICAL: Restore cursor position immediately after formatting
+                // Formatting with 'api' shouldn't move cursor, but we restore to be safe
+                requestAnimationFrame(() => {
+                  const checkSelection = quill.getSelection(true);
+                  // Only restore if cursor position changed
+                  if (!checkSelection || checkSelection.index !== savedCursorIndex) {
+                    quill.setSelection(savedCursorIndex, savedCursorLength, 'user');
+                  }
+                });
+                
+                applied = true;
               }
             };
             
-            // Listen for both text-change and selection-change to catch the new paragraph
-            quill.once('text-change', applyFormatting);
-            quill.once('selection-change', applyFormatting);
+            // Only listen for text-change event (NOT selection-change, as it can cause cursor jumps)
+            // The text-change event fires after Enter creates the new paragraph
+            quill.once('text-change', (delta, oldDelta, source) => {
+              // Only process user-initiated changes (Enter key press)
+              if (source === 'user') {
+                // Use setTimeout to ensure the new paragraph is fully created
+                setTimeout(applyFormatting, 0);
+              }
+            });
             
-            // Fallback timeout with longer delay
+            // Fallback timeout in case text-change doesn't fire
             setTimeout(() => {
               if (!applied) {
                 applyFormatting();
-                quill.off('text-change', applyFormatting);
-                quill.off('selection-change', applyFormatting);
               }
-            }, 50);
+            }, 100);
             
-            return true; // Allow default behavior
+            return true; // Allow default Enter behavior
           }
         },
         // Shift+Enter creates line break without paragraph spacing (like Word)
@@ -1566,6 +1613,83 @@ const UnifiedEmail = () => {
             // Quill's default Shift+Enter behavior creates a line break (<br>)
             // This stays within the same paragraph, so no paragraph spacing is added
             return true; // Allow default behavior
+          }
+        },
+        // Fix Backspace key to prevent cursor jumping to first line
+        backspace: {
+          key: 'Backspace',
+          handler: function(range, context) {
+            const quill = this.quill;
+            
+            // Save current cursor position before Backspace is processed
+            const savedIndex = range.index;
+            const savedLength = range.length;
+            
+            // Check if we're at the very beginning of the document with no content
+            if (savedIndex === 0 && savedLength === 0) {
+              const totalLength = quill.getLength();
+              if (totalLength <= 1) {
+                // Empty or only placeholder, allow default behavior
+                return true;
+              }
+            }
+            
+            // Let Quill handle the default Backspace behavior first
+            // Then ensure cursor position is preserved after deletion
+            let cursorPreserved = false;
+            
+            const preserveCursor = () => {
+              if (cursorPreserved) return;
+              
+              const currentSelection = quill.getSelection(true);
+              if (!currentSelection) {
+                // Selection was lost, restore based on expected position
+                // Backspace deletes content, so cursor should move back
+                const expectedIndex = Math.max(0, savedIndex - 1);
+                quill.setSelection(expectedIndex, 0, 'user');
+                cursorPreserved = true;
+                return;
+              }
+              
+              // Check if cursor unexpectedly jumped to beginning
+              // This happens when ReactQuill re-renders and resets cursor
+              if (currentSelection.index === 0 && savedIndex > 1) {
+                // Cursor jumped to beginning - restore to expected position
+                const expectedIndex = Math.max(0, savedIndex - 1);
+                quill.setSelection(expectedIndex, 0, 'user');
+                cursorPreserved = true;
+              } else {
+                // Cursor is in a reasonable position, but verify it's not too far off
+                const expectedIndex = Math.max(0, savedIndex - 1);
+                const diff = Math.abs(currentSelection.index - expectedIndex);
+                // If cursor is more than 10 positions off, it likely jumped
+                if (diff > 10 && savedIndex > 10) {
+                  quill.setSelection(expectedIndex, 0, 'user');
+                  cursorPreserved = true;
+                }
+              }
+            };
+            
+            // Listen for text-change event to restore cursor after deletion
+            quill.once('text-change', (delta, oldDelta, source) => {
+              if (source === 'user') {
+                // Check if this is actually a deletion (Backspace operation)
+                const isDeletion = delta.ops.some(op => op.delete && op.delete > 0);
+                if (isDeletion) {
+                  // Use multiple timing methods to ensure cursor is restored
+                  // This handles cases where ReactQuill re-renders and resets cursor
+                  setTimeout(preserveCursor, 0);
+                  requestAnimationFrame(preserveCursor);
+                  // Also try after a slightly longer delay to catch delayed updates
+                  setTimeout(preserveCursor, 10);
+                  // Final check after React state updates complete
+                  setTimeout(preserveCursor, 50);
+                }
+              }
+            });
+            
+            // Allow default Backspace behavior
+            return true;
           }
         }
       }
@@ -2334,6 +2458,21 @@ const UnifiedEmail = () => {
                     <div className="text-xs text-gray-500">
                       to {selectedEmail.to || 'Unknown Recipient'}
                     </div>
+                    {selectedEmail.messageId && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        <span className="font-mono">Message ID: </span>
+                        <span 
+                          className="font-mono cursor-pointer hover:text-gray-600 hover:underline"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedEmail.messageId);
+                            toast.success('Message ID copied to clipboard');
+                          }}
+                          title="Click to copy Message ID"
+                        >
+                          {selectedEmail.messageId}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">
                     {selectedEmail.date ? new Date(selectedEmail.date).toLocaleString() : 'Unknown Date'}
@@ -2483,7 +2622,7 @@ const UnifiedEmail = () => {
               ? 'top-20 left-[280px] right-8 bottom-8'
               : 'bottom-4 right-4 w-[600px] h-[600px] max-h-[calc(100vh-2rem)]'
         } z-50 bg-white shadow-2xl rounded-lg border border-gray-300 flex flex-col transition-all duration-300`}
-          style={{ display: 'flex' }}
+          style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
           onClick={(e) => {
             // Prevent clicks inside compose window from closing it
             e.stopPropagation();
@@ -2704,12 +2843,12 @@ const UnifiedEmail = () => {
 
               {/* Rich Text Editor - Matching Templates.js structure exactly */}
               <div 
-                className="flex-1 flex flex-col min-h-[300px]"
-                style={{ position: 'relative', zIndex: 1 }}
+                className="flex-1 flex flex-col min-h-0"
+                style={{ position: 'relative', zIndex: 1, overflow: 'hidden' }}
               >
                 <div 
-                  className="border border-gray-300 rounded-lg bg-white overflow-hidden"
-                  style={{ position: 'relative', zIndex: 1 }}
+                  className="border border-gray-300 rounded-lg bg-white flex flex-col"
+                  style={{ position: 'relative', zIndex: 1, flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}
                   onClick={(e) => {
                     // Ensure toolbar stays visible when clicking in editor area
                     requestAnimationFrame(() => {
@@ -2915,22 +3054,64 @@ const UnifiedEmail = () => {
                     z-index: 1001 !important;
                     width: 152px !important;
                   }
+                  .compose-editor {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    height: 100% !important;
+                    max-height: 100% !important;
+                  }
                   .compose-editor .ql-container {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    overflow-y: auto;
+                    flex: 1 1 0% !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    overflow-y: scroll !important;
+                    overflow-x: hidden !important;
                     font-size: 14px;
-                    min-height: 0;
+                    min-height: 0 !important;
+                    height: 0 !important;
+                    max-height: 100% !important;
                     border-radius: 0 0 0.5rem 0.5rem;
                     visibility: visible !important;
                     opacity: 1 !important;
                     pointer-events: auto !important;
+                    position: relative !important;
+                  }
+                  /* Force scrollbar to always be visible and styled */
+                  .compose-editor .ql-container {
+                    scrollbar-width: auto !important;
+                    scrollbar-color: #888 #f1f1f1 !important;
+                  }
+                  /* Webkit scrollbar - make it prominent and always visible */
+                  .compose-editor .ql-container::-webkit-scrollbar {
+                    width: 14px !important;
+                    -webkit-appearance: none !important;
+                    display: block !important;
+                  }
+                  .compose-editor .ql-container::-webkit-scrollbar-track {
+                    background: #f1f1f1 !important;
+                    border-radius: 7px !important;
+                    border: 1px solid #e5e7eb !important;
+                    margin: 4px 0 !important;
+                  }
+                  .compose-editor .ql-container::-webkit-scrollbar-thumb {
+                    background: #888 !important;
+                    border-radius: 7px !important;
+                    border: 2px solid #f1f1f1 !important;
+                    min-height: 30px !important;
+                  }
+                  .compose-editor .ql-container::-webkit-scrollbar-thumb:hover {
+                    background: #555 !important;
+                  }
+                  .compose-editor .ql-container::-webkit-scrollbar-thumb:active {
+                    background: #333 !important;
+                  }
+                  .compose-editor .ql-container::-webkit-scrollbar-corner {
+                    background: #f1f1f1 !important;
                   }
                   .compose-editor .ql-editor {
-                    flex: 1;
                     min-height: 250px;
                     padding: 12px;
+                    padding-bottom: 24px;
                     text-align: left;
                     line-height: 1.15;
                     word-wrap: break-word;
@@ -2940,6 +3121,10 @@ const UnifiedEmail = () => {
                     opacity: 1 !important;
                     pointer-events: auto !important;
                     display: block !important;
+                    height: auto !important;
+                    max-height: none !important;
+                    flex: none !important;
+                    overflow: visible !important;
                   }
                   .compose-editor .ql-editor:focus {
                     outline: none;
