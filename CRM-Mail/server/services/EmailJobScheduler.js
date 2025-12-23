@@ -466,22 +466,22 @@ class EmailJobScheduler {
         throw new Error(`Email subject cannot be empty for template ${activeTemplate.id}`);
       }
 
-      // USER REQUEST: Separate emails with their own subjects (no threading)
-      // Add unique identifier to break Gmail's threading algorithm
-      // Format: [Template Subject] - Follow-up #[number] - [timestamp]
-      // This ensures each email has a completely unique subject while keeping template content readable
-      const followUpNumber = job.currentAttempt + 1;
-      const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp for uniqueness
-      const uniqueIdentifier = `[Follow-up #${followUpNumber}-${timestamp}]`;
-      
-      // Remove any existing "Re:" or "Fwd:" prefix from template subject to prevent threading
+      // Remove any existing "Re:" or "Fwd:" prefix from template subject
       let cleanSubject = subjectBase.replace(/^(Re:\s*|Fwd:\s*|RE:\s*|FWD:\s*)/i, '').trim();
       
-      // Add unique identifier to make subject completely unique (prevents Gmail threading)
-      const finalSubject = `${cleanSubject} ${uniqueIdentifier}`;
+      // Remove any follow-up tracking identifiers (e.g., [Follow-up #3-640684], [Follow-up#3], etc.)
+      // This ensures clients never see internal tracking IDs
+      // Match patterns like: [Follow-up #3-640684], [Follow-up#3], [Follow-up #3], [Follow-up 3], etc.
+      cleanSubject = cleanSubject.replace(/\s*\[Follow-up\s*#?\s*\d+[-\s]*\d*\]\s*/gi, '').trim();
+      // Also catch any remaining variations with different spacing
+      cleanSubject = cleanSubject.replace(/\s*\[Follow-up[^\]]*\]\s*/gi, '').trim();
+      
+      // Use clean subject without any tracking identifiers
+      const finalSubject = cleanSubject;
 
+      const followUpNumber = job.currentAttempt + 1;
       console.log(
-        `📧 [Separate Emails] Follow-up email #${followUpNumber} - Unique subject: "${finalSubject}"`
+        `📧 [Follow-up Email] Follow-up email #${followUpNumber} - Subject: "${finalSubject}"`
       );
 
       console.log(`📧 [Email Content] Sending follow-up email:`);

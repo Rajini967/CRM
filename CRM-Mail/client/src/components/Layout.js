@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Calendar,
-  Upload
+  Upload,
+  Send
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -26,6 +27,7 @@ const Layout = () => {
     { name: 'Conferences', href: '/conferences', icon: Calendar },
     { name: 'Clients', href: '/clients', icon: Users },
     { name: 'Email', href: '/email', icon: Mail },
+    { name: 'Bulk Emails', href: '/bulk-emails', icon: Send },
     { name: 'Templates', href: '/templates', icon: FileText },
   ];
 

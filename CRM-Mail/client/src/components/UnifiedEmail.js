@@ -32,6 +32,8 @@ import {
   Link,
   Image,
   Maximize2,
+  Download,
+  Eye,
   Minimize2
 } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
@@ -644,7 +646,19 @@ const UnifiedEmail = () => {
 
   const { data: emailAccounts = [], isLoading: emailAccountsLoading } = useQuery('email-accounts', async () => {
     const response = await axios.get('/api/email-accounts');
-    return response.data;
+    const accounts = response.data || [];
+    console.log('📧 Fetched email accounts from backend:', {
+      count: accounts.length,
+      accounts: accounts.map(acc => ({ 
+        id: acc.id, 
+        name: acc.name, 
+        email: acc.email, 
+        type: acc.type,
+        isSystemAccount: acc.isSystemAccount,
+        ownerId: acc.ownerId
+      }))
+    });
+    return accounts;
   });
 
   const sortedEmailAccounts = React.useMemo(() => {
@@ -694,33 +708,29 @@ const UnifiedEmail = () => {
   }, [sortedEmailAccounts, currentUserId]);
 
   const visibleEmailAccounts = React.useMemo(() => {
-    // CEO sees all accounts
-    if (isCeo) {
-      return [
-        ...groupedEmailAccounts.shared,
-        ...groupedEmailAccounts.mine,
-        ...groupedEmailAccounts.others
-      ];
-    }
-
-    // Non-CEO users: Only show SMTP accounts mapped to their assigned conferences
-    if (allowedSmtpAccountIds === null || allowedSmtpAccountIds.length === 0) {
-      // No assigned conferences or no SMTP mappings - show nothing
-      return [];
-    }
-
-    // Filter accounts to only those mapped to assigned conferences
+    // The backend /api/email-accounts already filters accounts based on user role and conference assignments
+    // So we can trust the backend filtering and use all accounts returned
+    // Only filter to show SMTP-capable accounts (type === 'smtp' or type === 'both')
     const allAccounts = [
       ...groupedEmailAccounts.shared,
       ...groupedEmailAccounts.mine,
       ...groupedEmailAccounts.others
     ];
 
-    return allAccounts.filter(account => {
-      const accountId = String(account.id);
-      return allowedSmtpAccountIds.includes(accountId);
+    // Filter to only SMTP-capable accounts (can send emails)
+    const smtpAccounts = allAccounts.filter(account => {
+      return account.type === 'smtp' || account.type === 'both';
     });
-  }, [groupedEmailAccounts, isCeo, allowedSmtpAccountIds]);
+
+    // Debug logging
+    console.log('📧 Visible Email Accounts:', {
+      totalAccounts: allAccounts.length,
+      smtpAccounts: smtpAccounts.length,
+      accounts: smtpAccounts.map(acc => ({ id: acc.id, name: acc.name, email: acc.email, type: acc.type }))
+    });
+
+    return smtpAccounts;
+  }, [groupedEmailAccounts]);
 
   React.useEffect(() => {
     if (!visibleEmailAccounts.length) {
@@ -741,6 +751,14 @@ const UnifiedEmail = () => {
       return visibleEmailAccounts[0].id;
     });
   }, [visibleEmailAccounts]);
+
+  // Ensure an account is selected when compose modal opens
+  React.useEffect(() => {
+    if (showCompose && visibleEmailAccounts.length > 0 && !selectedEmailAccountId) {
+      // If compose is open but no account selected, select the first available account
+      setSelectedEmailAccountId(visibleEmailAccounts[0].id);
+    }
+  }, [showCompose, visibleEmailAccounts, selectedEmailAccountId]);
 
   React.useEffect(() => {
     if (showCompose) return;
@@ -2582,28 +2600,148 @@ const UnifiedEmail = () => {
                       : (typeof selectedEmail.attachments === 'string' ? JSON.parse(selectedEmail.attachments) : []);
                     
                     if (attachments && attachments.length > 0) {
+                      const handleDownloadAttachment = async (attachment, index) => {
+                        try {
+                          const url = `/api/emails/${selectedEmail.id}/attachments/${index}`;
+                          const response = await axios.get(url, {
+                            responseType: 'blob',
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                          });
+                          
+                          const blob = new Blob([response.data]);
+                          const downloadUrl = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = downloadUrl;
+                          link.download = attachment.filename || attachment.name || `attachment-${index + 1}`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(downloadUrl);
+                          toast.success('Attachment downloaded successfully');
+                        } catch (error) {
+                          console.error('Download error:', error);
+                          toast.error('Failed to download attachment');
+                        }
+                      };
+
+                      const isImageFile = (filename, contentType) => {
+                        if (!filename && !contentType) return false;
+                        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+                        const lowerFilename = (filename || '').toLowerCase();
+                        const isImageExt = imageExtensions.some(ext => lowerFilename.endsWith(ext));
+                        const isImageContentType = contentType && contentType.startsWith('image/');
+                        return isImageExt || isImageContentType;
+                      };
+
                       return (
                         <div className="mt-6 pt-6 border-t border-gray-200">
                           <h3 className="text-sm font-medium text-gray-900 mb-3">
                             Attachments ({attachments.length})
                           </h3>
-                          <div className="space-y-2">
-                            {attachments.map((attachment, index) => (
-                              <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md">
-                                <Mail className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm text-gray-700">{attachment.filename || `Attachment ${index + 1}`}</span>
-                                {attachment.size && (
-                                  <span className="text-xs text-gray-500">
-                                    ({Math.round(attachment.size / 1024)} KB)
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                          <div className="space-y-3">
+                            {attachments.map((attachment, index) => {
+                              const filename = attachment.filename || attachment.name || `Attachment ${index + 1}`;
+                              const contentType = attachment.contentType || attachment.mimetype || '';
+                              const isImage = isImageFile(filename, contentType);
+                              const attachmentViewUrl = `/api/emails/${selectedEmail.id}/attachments/${index}/view`;
+                              
+                              return (
+                                <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+                                  {/* Image Preview */}
+                                  {isImage && (
+                                    <div className="bg-gray-50 p-3 border-b border-gray-200">
+                                      <img 
+                                        src={attachmentViewUrl}
+                                        alt={filename}
+                                        className="max-w-full max-h-64 mx-auto rounded cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={async () => {
+                                          try {
+                                            const response = await axios.get(attachmentViewUrl, {
+                                              responseType: 'blob',
+                                              headers: {
+                                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                              }
+                                            });
+                                            const blob = new Blob([response.data]);
+                                            const url = window.URL.createObjectURL(blob);
+                                            window.open(url, '_blank');
+                                          } catch (error) {
+                                            console.error('Error viewing image:', error);
+                                            toast.error('Failed to view image');
+                                          }
+                                        }}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {/* Attachment Info and Actions */}
+                                  <div className="flex items-center justify-between p-3 bg-white">
+                                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                      {!isImage && (
+                                        <File className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate" title={filename}>
+                                          {filename}
+                                        </p>
+                                        {attachment.size && (
+                                          <p className="text-xs text-gray-500">
+                                            {Math.round(attachment.size / 1024)} KB
+                                            {contentType && ` • ${contentType.split('/')[1]?.toUpperCase() || contentType}`}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center space-x-2 ml-3 flex-shrink-0">
+                                      {isImage && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const response = await axios.get(attachmentViewUrl, {
+                                                responseType: 'blob',
+                                                headers: {
+                                                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                }
+                                              });
+                                              const blob = new Blob([response.data]);
+                                              const url = window.URL.createObjectURL(blob);
+                                              window.open(url, '_blank');
+                                            } catch (error) {
+                                              console.error('Error viewing image:', error);
+                                              toast.error('Failed to view image');
+                                            }
+                                          }}
+                                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                          title="View image in new tab"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleDownloadAttachment(attachment, index)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                        title="Download attachment"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
                     }
                   } catch (e) {
+                    console.error('Error parsing attachments:', e);
                     return null;
                   }
                   return null;
@@ -2689,7 +2827,11 @@ const UnifiedEmail = () => {
                   {emailAccountsLoading ? (
                     <span className="text-xs text-gray-500 ml-2">Loading accounts...</span>
                   ) : !visibleEmailAccounts.length ? (
-                    <span className="text-xs text-red-500 ml-2">No SMTP accounts</span>
+                    <span className="text-xs text-red-500 ml-2">
+                      {isCeo 
+                        ? 'No SMTP accounts available' 
+                        : 'No SMTP accounts assigned to your conferences. Please contact your administrator.'}
+                    </span>
                   ) : (
                   <select
                     value={selectedEmailAccountId || ''}
@@ -2699,20 +2841,57 @@ const UnifiedEmail = () => {
                     }}
                     className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
-                    {[
-                      { label: 'Shared (System)', accounts: groupedEmailAccounts.shared },
-                      { label: 'My Accounts', accounts: groupedEmailAccounts.mine },
-                      ...(isCeo ? [{ label: 'Team Accounts', accounts: groupedEmailAccounts.others }] : [])
-                    ].map((section) =>
-                      section.accounts.length > 0 ? (
-                        <optgroup key={section.label} label={section.label}>
-                          {section.accounts.map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.name || account.email}{account.isActive === false ? ' (Paused)' : ''}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : null
+                    {visibleEmailAccounts.length === 0 ? (
+                      <option value="">No SMTP accounts available</option>
+                    ) : (
+                      <>
+                        {/* Group accounts by category for better UX */}
+                        {visibleEmailAccounts.filter(acc => acc.isSystemAccount).length > 0 && (
+                          <optgroup label="Shared (System)">
+                            {visibleEmailAccounts
+                              .filter(acc => acc.isSystemAccount)
+                              .map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
+                                </option>
+                              ))}
+                          </optgroup>
+                        )}
+                        {visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId).length > 0 && (
+                          <optgroup label="My Accounts">
+                            {visibleEmailAccounts
+                              .filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId)
+                              .map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
+                                </option>
+                              ))}
+                          </optgroup>
+                        )}
+                        {isCeo && visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId).length > 0 && (
+                          <optgroup label="Team Accounts">
+                            {visibleEmailAccounts
+                              .filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId)
+                              .map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
+                                </option>
+                              ))}
+                          </optgroup>
+                        )}
+                        {/* If no optgroups match, show all accounts directly */}
+                        {visibleEmailAccounts.filter(acc => acc.isSystemAccount).length === 0 &&
+                         visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId).length === 0 &&
+                         (!isCeo || visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId).length === 0) && (
+                          <>
+                            {visibleEmailAccounts.map((account) => (
+                              <option key={account.id} value={account.id}>
+                                {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </select>
                   )}

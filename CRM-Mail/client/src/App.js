@@ -9,6 +9,7 @@ import EnhancedDashboard from './components/EnhancedDashboard';
 import Clients from './components/Clients';
 import BulkUpload from './components/BulkUpload';
 import UnifiedEmail from './components/UnifiedEmail';
+import BulkEmails from './components/BulkEmails';
 import Templates from './components/Templates';
 import EmailLogs from './components/EmailLogs';
 import Settings from './components/Settings';
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="clients" element={<Clients />} />
         <Route path="bulk-upload" element={<BulkUpload />} />
         <Route path="email" element={<UnifiedEmail />} />
+        <Route path="bulk-emails" element={<BulkEmails />} />
         <Route path="templates" element={<Templates />} />
         <Route path="templates/new" element={<Templates />} />
         <Route path="templates/:id/edit" element={<Templates />} />

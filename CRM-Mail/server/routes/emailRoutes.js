@@ -11,6 +11,27 @@ const { decryptEmailPassword } = require('../utils/passwordUtils');
 const { prepareAttachmentsForSending } = require('../utils/attachmentUtils');
 const { normalizeEmailList, mergeEmailLists } = require('../utils/emailListUtils');
 const { formatEmailHtml, logEmailHtmlPayload } = require('../utils/emailHtmlFormatter');
+const jwt = require('jsonwebtoken');
+
+// Authentication middleware
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error('JWT verification error:', err.message);
+      return res.status(403).json({ error: 'Invalid token', details: err.message });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 // Configure multer for file uploads - use any() to handle both files and fields
 const upload = multer({ 
@@ -1491,6 +1512,145 @@ router.put('/draft/:id', upload.any(), async (req, res) => {
   } catch (error) {
     console.error('Update draft error:', error);
     res.status(500).json({ error: 'Failed to update draft', details: error.message });
+  }
+});
+
+// GET /api/emails/:emailId/attachments/:attachmentIndex - Download attachment
+router.get('/:emailId/attachments/:attachmentIndex', authenticateToken, async (req, res) => {
+  try {
+    const { emailId, attachmentIndex } = req.params;
+    const index = parseInt(attachmentIndex, 10);
+    
+    if (isNaN(index) || index < 0) {
+      return res.status(400).json({ error: 'Invalid attachment index' });
+    }
+
+    const email = await Email.findByPk(emailId);
+    if (!email) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    // Parse attachments
+    let attachments = [];
+    if (email.attachments) {
+      if (Array.isArray(email.attachments)) {
+        attachments = email.attachments;
+      } else if (typeof email.attachments === 'string') {
+        try {
+          attachments = JSON.parse(email.attachments);
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid attachments format' });
+        }
+      }
+    }
+
+    if (!attachments || attachments.length === 0 || index >= attachments.length) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const attachment = attachments[index];
+    
+    // Handle different attachment formats
+    let fileContent;
+    let contentType = attachment.contentType || 'application/octet-stream';
+    let filename = attachment.filename || attachment.name || `attachment-${index + 1}`;
+
+    if (attachment.content) {
+      // Base64 encoded content
+      if (typeof attachment.content === 'string') {
+        fileContent = Buffer.from(attachment.content, 'base64');
+      } else {
+        fileContent = Buffer.from(attachment.content);
+      }
+    } else if (attachment.buffer) {
+      // Buffer content
+      fileContent = Buffer.isBuffer(attachment.buffer) 
+        ? attachment.buffer 
+        : Buffer.from(attachment.buffer);
+    } else {
+      return res.status(400).json({ error: 'Attachment content not found' });
+    }
+
+    // Set response headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Length', fileContent.length);
+
+    // Send file
+    res.send(fileContent);
+  } catch (error) {
+    console.error('Download attachment error:', error);
+    res.status(500).json({ error: 'Failed to download attachment', details: error.message });
+  }
+});
+
+// GET /api/emails/:emailId/attachments/:attachmentIndex/view - View attachment (for images)
+router.get('/:emailId/attachments/:attachmentIndex/view', authenticateToken, async (req, res) => {
+  try {
+    const { emailId, attachmentIndex } = req.params;
+    const index = parseInt(attachmentIndex, 10);
+    
+    if (isNaN(index) || index < 0) {
+      return res.status(400).json({ error: 'Invalid attachment index' });
+    }
+
+    const email = await Email.findByPk(emailId);
+    if (!email) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    // Parse attachments
+    let attachments = [];
+    if (email.attachments) {
+      if (Array.isArray(email.attachments)) {
+        attachments = email.attachments;
+      } else if (typeof email.attachments === 'string') {
+        try {
+          attachments = JSON.parse(email.attachments);
+        } catch (e) {
+          return res.status(400).json({ error: 'Invalid attachments format' });
+        }
+      }
+    }
+
+    if (!attachments || attachments.length === 0 || index >= attachments.length) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const attachment = attachments[index];
+    
+    // Handle different attachment formats
+    let fileContent;
+    let contentType = attachment.contentType || 'application/octet-stream';
+    let filename = attachment.filename || attachment.name || `attachment-${index + 1}`;
+
+    if (attachment.content) {
+      // Base64 encoded content
+      if (typeof attachment.content === 'string') {
+        fileContent = Buffer.from(attachment.content, 'base64');
+      } else {
+        fileContent = Buffer.from(attachment.content);
+      }
+    } else if (attachment.buffer) {
+      // Buffer content
+      fileContent = Buffer.isBuffer(attachment.buffer) 
+        ? attachment.buffer 
+        : Buffer.from(attachment.buffer);
+    } else {
+      return res.status(400).json({ error: 'Attachment content not found' });
+    }
+
+    // Set response headers for viewing (inline)
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Length', fileContent.length);
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+
+    // Send file
+    res.send(fileContent);
+  } catch (error) {
+    console.error('View attachment error:', error);
+    res.status(500).json({ error: 'Failed to view attachment', details: error.message });
   }
 });
 

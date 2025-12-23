@@ -2115,6 +2115,10 @@ router.get('/template/download', authenticateToken, async (req, res) => {
         'Emails Already Sent': 0,
         'Stage 1 Emails Already Sent': 0,
         'Stage 2 Emails Already Sent': 0,
+        // Threading (optional) - paste the Message-ID of the very first email in the thread
+        // This keeps all automated emails in the same conversation in the recipient's inbox
+        'Thread root Message-ID': '<example-message-id@yourdomain.com>',
+        'Initial Thread Subject': 'Optional: Custom subject to match the original thread',
         'Notes': 'Example client'
       }
     ];
@@ -2133,6 +2137,8 @@ router.get('/template/download', authenticateToken, async (req, res) => {
       { wch: 20 }, // Emails Already Sent (legacy stage 1)
       { wch: 24 }, // Stage 1 Emails Already Sent
       { wch: 24 }, // Stage 2 Emails Already Sent
+      { wch: 40 }, // Thread root Message-ID
+      { wch: 35 }, // Initial Thread Subject
       { wch: 30 }  // Notes
     ];
     
@@ -2148,7 +2154,7 @@ router.get('/template/download', authenticateToken, async (req, res) => {
       ['Instructions:'],
       ['1. Fill in client details in the "Clients" sheet'],
       ['2. REQUIRED fields: Name, Email'],
-      ['3. OPTIONAL fields: Conference, Status, Stage, Emails Already Sent, Stage 1 Emails Already Sent, Stage 2 Emails Already Sent, Country, Notes'],
+      ['3. OPTIONAL fields: Conference, Status, Stage, Emails Already Sent, Stage 1 Emails Already Sent, Stage 2 Emails Already Sent, Country, Notes, Thread root Message-ID, Initial Thread Subject'],
       ['4. Use the dropdown values for Status, Stage, and Conference columns if provided'],
       ['5. Delete the example row before uploading'],
       [''],
@@ -2157,6 +2163,8 @@ router.get('/template/download', authenticateToken, async (req, res) => {
       ['- Stage: Defaults to "stage1" if not provided (Initial email + Abstract + Registration workflow)'],
       ['- Conference: Optional - email workflow only starts if Conference is assigned'],
       ['- Emails Already Sent / Stage 1 / Stage 2 counts: Enter number of emails sent manually (default 0). Automation will skip these emails.'],
+      ['- Thread root Message-ID: Paste the Message-ID of the very first email in the conversation to keep all automation threaded.'],
+      ['- Initial Thread Subject: Optional subject line to match the original thread (we will use it when available).'],
       [''],
       ['Available Options:'],
       ['Status Options:', statusOptions.join(', ')],

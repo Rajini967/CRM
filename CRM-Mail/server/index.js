@@ -26,6 +26,7 @@ const emailAccountRoutes = require('./routes/emailAccountRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const userRoutes = require('./routes/userRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const bulkEmailRoutes = require('./routes/bulkEmailRoutes');
 const { rescheduleConferenceFollowUps } = clientRoutes;
 const { router: imapRoutes, realTimeImapService } = require('./routes/imapRoutes');
 const templateDraftRoutes = require('./routes/templateDraftRoutes');
@@ -660,6 +661,7 @@ const searchRoutes = require('./routes/searchRoutes');
 
 // Protect email routes with authentication so req.user is available
 app.use('/api/emails', authenticateToken, emailRoutes);
+app.use('/api/bulk-emails', bulkEmailRoutes);
 app.use('/api/email-accounts', emailAccountRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
