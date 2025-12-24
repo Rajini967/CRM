@@ -596,8 +596,9 @@ const ConferenceManagement = () => {
     const rawMax = stage === 'stage1'
       ? Number(formData.stage1MaxFollowUps) || 0
       : Number(formData.stage2MaxFollowUps) || 0;
-    // For Stage 1, we always reserve one extra slot for the Initial Email.
-    const max = stage === 'stage1' ? rawMax + 1 : rawMax;
+    // Display only the number of templates equal to maxFollowups
+    // (The initial email is handled separately and sent manually)
+    const max = rawMax;
     const templatesKey = stage === 'stage1' ? 'stage1Templates' : 'stage2Templates';
     const source = Array.isArray(formData[templatesKey]) ? formData[templatesKey] : [];
     return Array.from({ length: max }, (_, index) => source[index] || '');
@@ -616,8 +617,8 @@ const ConferenceManagement = () => {
       const currentTemplates = Array.isArray(prev[templatesKey]) ? [...prev[templatesKey]] : [];
       let nextTemplates = currentTemplates;
 
-      // For Stage 1 we maintain one extra slot at index 0 for the Initial Email.
-      const effectiveMax = stage === 'stage1' ? parsed + 1 : parsed;
+      // Use the same max for both stages (the +1 for initial email is handled at submit time for backend compatibility)
+      const effectiveMax = parsed;
 
       if (effectiveMax < currentTemplates.length) {
         const trimmed = currentTemplates.slice(effectiveMax);

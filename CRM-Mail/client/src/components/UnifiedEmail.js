@@ -646,19 +646,7 @@ const UnifiedEmail = () => {
 
   const { data: emailAccounts = [], isLoading: emailAccountsLoading } = useQuery('email-accounts', async () => {
     const response = await axios.get('/api/email-accounts');
-    const accounts = response.data || [];
-    console.log('📧 Fetched email accounts from backend:', {
-      count: accounts.length,
-      accounts: accounts.map(acc => ({ 
-        id: acc.id, 
-        name: acc.name, 
-        email: acc.email, 
-        type: acc.type,
-        isSystemAccount: acc.isSystemAccount,
-        ownerId: acc.ownerId
-      }))
-    });
-    return accounts;
+    return response.data;
   });
 
   const sortedEmailAccounts = React.useMemo(() => {
@@ -708,29 +696,33 @@ const UnifiedEmail = () => {
   }, [sortedEmailAccounts, currentUserId]);
 
   const visibleEmailAccounts = React.useMemo(() => {
-    // The backend /api/email-accounts already filters accounts based on user role and conference assignments
-    // So we can trust the backend filtering and use all accounts returned
-    // Only filter to show SMTP-capable accounts (type === 'smtp' or type === 'both')
+    // CEO sees all accounts
+    if (isCeo) {
+      return [
+        ...groupedEmailAccounts.shared,
+        ...groupedEmailAccounts.mine,
+        ...groupedEmailAccounts.others
+      ];
+    }
+
+    // Non-CEO users: Only show SMTP accounts mapped to their assigned conferences
+    if (allowedSmtpAccountIds === null || allowedSmtpAccountIds.length === 0) {
+      // No assigned conferences or no SMTP mappings - show nothing
+      return [];
+    }
+
+    // Filter accounts to only those mapped to assigned conferences
     const allAccounts = [
       ...groupedEmailAccounts.shared,
       ...groupedEmailAccounts.mine,
       ...groupedEmailAccounts.others
     ];
 
-    // Filter to only SMTP-capable accounts (can send emails)
-    const smtpAccounts = allAccounts.filter(account => {
-      return account.type === 'smtp' || account.type === 'both';
+    return allAccounts.filter(account => {
+      const accountId = String(account.id);
+      return allowedSmtpAccountIds.includes(accountId);
     });
-
-    // Debug logging
-    console.log('📧 Visible Email Accounts:', {
-      totalAccounts: allAccounts.length,
-      smtpAccounts: smtpAccounts.length,
-      accounts: smtpAccounts.map(acc => ({ id: acc.id, name: acc.name, email: acc.email, type: acc.type }))
-    });
-
-    return smtpAccounts;
-  }, [groupedEmailAccounts]);
+  }, [groupedEmailAccounts, isCeo, allowedSmtpAccountIds]);
 
   React.useEffect(() => {
     if (!visibleEmailAccounts.length) {
@@ -751,14 +743,6 @@ const UnifiedEmail = () => {
       return visibleEmailAccounts[0].id;
     });
   }, [visibleEmailAccounts]);
-
-  // Ensure an account is selected when compose modal opens
-  React.useEffect(() => {
-    if (showCompose && visibleEmailAccounts.length > 0 && !selectedEmailAccountId) {
-      // If compose is open but no account selected, select the first available account
-      setSelectedEmailAccountId(visibleEmailAccounts[0].id);
-    }
-  }, [showCompose, visibleEmailAccounts, selectedEmailAccountId]);
 
   React.useEffect(() => {
     if (showCompose) return;
@@ -2827,11 +2811,7 @@ const UnifiedEmail = () => {
                   {emailAccountsLoading ? (
                     <span className="text-xs text-gray-500 ml-2">Loading accounts...</span>
                   ) : !visibleEmailAccounts.length ? (
-                    <span className="text-xs text-red-500 ml-2">
-                      {isCeo 
-                        ? 'No SMTP accounts available' 
-                        : 'No SMTP accounts assigned to your conferences. Please contact your administrator.'}
-                    </span>
+                    <span className="text-xs text-red-500 ml-2">No SMTP accounts</span>
                   ) : (
                   <select
                     value={selectedEmailAccountId || ''}
@@ -2841,57 +2821,20 @@ const UnifiedEmail = () => {
                     }}
                     className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
-                    {visibleEmailAccounts.length === 0 ? (
-                      <option value="">No SMTP accounts available</option>
-                    ) : (
-                      <>
-                        {/* Group accounts by category for better UX */}
-                        {visibleEmailAccounts.filter(acc => acc.isSystemAccount).length > 0 && (
-                          <optgroup label="Shared (System)">
-                            {visibleEmailAccounts
-                              .filter(acc => acc.isSystemAccount)
-                              .map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
-                                </option>
-                              ))}
-                          </optgroup>
-                        )}
-                        {visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId).length > 0 && (
-                          <optgroup label="My Accounts">
-                            {visibleEmailAccounts
-                              .filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId)
-                              .map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
-                                </option>
-                              ))}
-                          </optgroup>
-                        )}
-                        {isCeo && visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId).length > 0 && (
-                          <optgroup label="Team Accounts">
-                            {visibleEmailAccounts
-                              .filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId)
-                              .map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
-                                </option>
-                              ))}
-                          </optgroup>
-                        )}
-                        {/* If no optgroups match, show all accounts directly */}
-                        {visibleEmailAccounts.filter(acc => acc.isSystemAccount).length === 0 &&
-                         visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId === currentUserId).length === 0 &&
-                         (!isCeo || visibleEmailAccounts.filter(acc => !acc.isSystemAccount && acc.ownerId && acc.ownerId !== currentUserId).length === 0) && (
-                          <>
-                            {visibleEmailAccounts.map((account) => (
-                              <option key={account.id} value={account.id}>
-                                {account.name || account.email} ({account.email}){account.isActive === false ? ' (Paused)' : ''}
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </>
+                    {[
+                      { label: 'Shared (System)', accounts: groupedEmailAccounts.shared },
+                      { label: 'My Accounts', accounts: groupedEmailAccounts.mine },
+                      ...(isCeo ? [{ label: 'Team Accounts', accounts: groupedEmailAccounts.others }] : [])
+                    ].map((section) =>
+                      section.accounts.length > 0 ? (
+                        <optgroup key={section.label} label={section.label}>
+                          {section.accounts.map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.name || account.email}{account.isActive === false ? ' (Paused)' : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null
                     )}
                   </select>
                   )}

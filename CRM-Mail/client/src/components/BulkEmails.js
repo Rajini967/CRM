@@ -180,22 +180,6 @@ function BulkEmails() {
     setResults(null);
   };
 
-  // Reset form for next batch
-  const handleResetForm = () => {
-    setSelectedFile(null);
-    setSubject('');
-    setBodyHtml('');
-    setResults(null);
-    setTemplateId(''); // Reset template selection too
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    
-    toast.success('Form reset. Ready to send another batch!');
-  };
-
   // Download template
   const handleDownloadTemplate = async () => {
     try {
@@ -593,19 +577,6 @@ function BulkEmails() {
                         </li>
                       )}
                     </ul>
-                  </div>
-                )}
-
-                {/* Send Another Batch Button */}
-                {results.success > 0 && (
-                  <div className="flex justify-center pt-4">
-                    <button
-                      onClick={handleResetForm}
-                      className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Upload className="w-5 h-5" />
-                      Send Another Batch
-                    </button>
                   </div>
                 )}
               </div>
